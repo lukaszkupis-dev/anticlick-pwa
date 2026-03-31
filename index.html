@@ -306,7 +306,12 @@
 
   window.addEventListener('DOMContentLoaded', () => {
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
-    // Pre-fill if returning
+
+    // ?settings lub ?reset w URL = pokaż onboarding zawsze
+    const params = new URLSearchParams(window.location.search);
+    const forceSettings = params.has('settings') || params.has('reset');
+
+    // Pre-fill
     document.getElementById('groq-key').value = ls.get(K.groq);
     document.getElementById('gemini-key').value = ls.get(K.gem);
     document.getElementById('streamlit-url-ob').value = ls.get(K.url);
@@ -315,7 +320,7 @@
       document.getElementById('splash').classList.add('out');
       setTimeout(() => {
         document.getElementById('splash').style.display = 'none';
-        if ((ls.get(K.groq) || ls.get(K.gem)) && ls.get(K.url)) {
+        if (!forceSettings && (ls.get(K.groq) || ls.get(K.gem)) && ls.get(K.url)) {
           launchApp();
         } else {
           document.getElementById('onboarding').classList.add('visible');
