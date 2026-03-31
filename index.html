@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AntiClick">
+  <meta name="theme-color" content="#0d0d0f">
+  <title>AntiClick</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg:      #0d0d0f;
+      --surface: #161618;
+      --surf2:   #1e1e21;
+      --border:  #2a2a2e;
+      --accent:  #00d4aa;
+      --text:    #e8e8ec;
+      --muted:   #6b6b78;
+      --dim:     #9999a8;
+      --r:       14px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg); overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased; color: var(--text);
+    }
+
+    /* ── Splash ── */
+    #splash {
+      position: fixed; inset: 0; z-index: 200;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 24px;
+      transition: opacity .5s ease;
+    }
+    #splash.out { opacity: 0; pointer-events: none; }
+    .splash-logo {
+      width: 100px; height: 100px; border-radius: 24px;
+      background: linear-gradient(135deg, #0d2d24, #0a1628);
+      border: 1px solid #00d4aa33;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      animation: logoPop .6s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    .splash-logo svg { width: 60px; height: 60px; }
+    .splash-logo::after {
+      content: ''; position: absolute; inset: -7px; border-radius: 30px;
+      border: 1.5px solid #00d4aa44;
+      animation: ring 1.8s ease-in-out infinite;
+    }
+    .splash-name { font-size: 1.5rem; font-weight: 700; letter-spacing: -.5px; animation: fadeUp .5s .2s both; }
+    .splash-name span { color: var(--accent); }
+    .splash-sub { font-size: .85rem; color: var(--muted); animation: fadeUp .5s .35s both; }
+    .scan-bar { width: 120px; height: 2px; border-radius: 2px; background: var(--surf2); overflow: hidden; animation: fadeUp .5s .4s both; }
+    .scan-bar::after { content: ''; display: block; width: 40%; height: 100%; background: var(--accent); border-radius: 2px; animation: scan 1.2s ease-in-out infinite; }
+
+    @keyframes ring    { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:.8;transform:scale(1.04)} }
+    @keyframes logoPop { from{opacity:0;transform:scale(.7)} to{opacity:1;transform:scale(1)} }
+    @keyframes fadeUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes scan    { 0%{transform:translateX(-100%)} 100%{transform:translateX(350%)} }
+
+    /* ── Onboarding ── */
+    #onboarding {
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--bg); display: none; flex-direction: column;
+      overflow-y: auto;
+      padding: calc(var(--safe-top) + 48px) 24px calc(var(--safe-bot) + 32px);
+    }
+    #onboarding.visible { display: flex; }
+    .ob-icon {
+      width: 72px; height: 72px; border-radius: 18px;
+      background: linear-gradient(135deg, #0d2d24, #0a1628);
+      border: 1px solid #00d4aa33;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 24px; flex-shrink: 0;
+    }
+    .ob-icon svg { width: 40px; height: 40px; }
+    .ob-title { font-size: 1.6rem; font-weight: 700; letter-spacing: -.5px; margin-bottom: 8px; }
+    .ob-title span { color: var(--accent); }
+    .ob-sub { font-size: .9rem; color: var(--dim); line-height: 1.6; margin-bottom: 32px; }
+    .ob-section { margin-bottom: 28px; }
+    .ob-label { font-size: .7rem; font-weight: 600; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; font-family: 'SF Mono','Fira Code',monospace; margin-bottom: 8px; }
+    .api-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; margin-bottom: 10px; }
+    .api-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .api-card-name { font-size: .82rem; font-weight: 600; }
+    .api-badge { font-size: .65rem; font-family: 'SF Mono',monospace; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .badge-groq  { background: #00d4aa22; color: var(--accent); border: 1px solid #00d4aa44; }
+    .badge-gem   { background: #4285f422; color: #7ab4f8; border: 1px solid #4285f444; }
+    .api-hint { font-size: .75rem; color: var(--muted); margin-bottom: 10px; }
+    .api-hint a { color: var(--accent); text-decoration: none; }
+    .inp-wrap { position: relative; }
+    .inp-wrap input {
+      width: 100%; background: var(--surf2); color: var(--text);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 11px 44px 11px 14px;
+      font-size: .88rem; font-family: 'SF Mono','Fira Code',monospace;
+      outline: none; transition: border-color .15s; -webkit-appearance: none;
+    }
+    .inp-wrap input:focus { border-color: var(--accent); }
+    .inp-wrap input.ok  { border-color: #00d4aa88; }
+    .inp-wrap input.err { border-color: #ff475788; }
+    .inp-eye { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--muted); padding: 4px; font-size: 16px; line-height: 1; }
+    .url-input {
+      width: 100%; background: var(--surf2); color: var(--text);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 11px 14px; font-size: .82rem;
+      font-family: 'SF Mono','Fira Code',monospace;
+      outline: none; transition: border-color .15s; -webkit-appearance: none; margin-bottom: 6px;
+    }
+    .url-input:focus { border-color: var(--accent); }
+    .url-hint { font-size: .75rem; color: var(--muted); }
+    .ob-info { background: var(--surf2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: .78rem; color: var(--dim); line-height: 1.6; display: flex; gap: 10px; align-items: flex-start; margin-bottom: 28px; }
+    .ob-info-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .btn-start { width: 100%; padding: 15px; background: var(--accent); color: #000; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; -webkit-appearance: none; }
+    .btn-start:active { opacity: .85; transform: scale(.98); }
+    .btn-start:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* ── Main app ── */
+    #app { position: fixed; inset: 0; padding-top: var(--safe-top); padding-bottom: var(--safe-bot); display: none; flex-direction: column; }
+    #app.visible { display: flex; }
+    #status-bar { height: 36px; flex-shrink: 0; background: #0d0d0f; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--border); }
+    .sb-logo { font-size: .78rem; font-weight: 700; letter-spacing: -.3px; font-family: 'SF Mono',monospace; color: var(--accent); }
+    .sb-logo span { color: var(--muted); }
+    .sb-actions { display: flex; gap: 8px; align-items: center; }
+    .sb-btn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 4px 6px; border-radius: 6px; transition: color .15s; line-height: 1; }
+    .sb-provider { font-size: .62rem; font-family: 'SF Mono',monospace; padding: 2px 8px; border-radius: 8px; font-weight: 600; }
+    iframe { flex: 1; width: 100%; border: none; background: var(--bg); }
+
+    /* ── Settings modal ── */
+    #settings-backdrop { position: fixed; inset: 0; z-index: 150; background: rgba(0,0,0,.6); display: none; align-items: flex-end; backdrop-filter: blur(4px); }
+    #settings-backdrop.visible { display: flex; }
+    #settings-panel { width: 100%; max-height: 80vh; overflow-y: auto; background: var(--surface); border-radius: 20px 20px 0 0; border-top: 1px solid var(--border); padding: 12px 24px calc(var(--safe-bot) + 28px); animation: slideUp .3s cubic-bezier(.34,1.2,.64,1); }
+    @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .panel-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 20px; }
+    .panel-title { font-size: 1rem; font-weight: 700; margin-bottom: 20px; }
+    .panel-label { font-size: .68rem; font-weight: 600; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; font-family: 'SF Mono',monospace; margin-bottom: 8px; }
+    .panel-section { margin-bottom: 24px; }
+    .provider-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    .prov-btn { flex: 1; padding: 10px 8px; background: var(--surf2); border: 1px solid var(--border); border-radius: 10px; color: var(--dim); font-size: .8rem; font-weight: 600; cursor: pointer; transition: all .15s; text-align: center; }
+    .prov-btn.active-groq   { background: #00d4aa22; border-color: #00d4aa88; color: var(--accent); }
+    .prov-btn.active-gemini { background: #4285f422; border-color: #4285f488; color: #7ab4f8; }
+    .panel-inp { width: 100%; background: var(--surf2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; font-size: .82rem; font-family: 'SF Mono',monospace; outline: none; transition: border-color .15s; -webkit-appearance: none; margin-bottom: 8px; }
+    .panel-inp:focus { border-color: var(--accent); }
+    .btn-action { width: 100%; padding: 11px; background: var(--surf2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: .85rem; font-weight: 600; cursor: pointer; transition: border-color .15s; margin-bottom: 8px; }
+    .btn-action:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { width: 100%; padding: 12px; background: transparent; border: 1px solid #ff475744; border-radius: 10px; color: #ff6b6b; font-size: .88rem; font-weight: 600; cursor: pointer; }
+
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: calc(var(--safe-bot) + 24px); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surf2); border: 1px solid var(--border); border-radius: 20px; padding: 8px 18px; font-size: .82rem; color: var(--text); opacity: 0; transition: all .3s; pointer-events: none; white-space: nowrap; z-index: 300; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-logo">
+    <svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="108" y="148" width="90" height="14" rx="3" fill="#00d4aa" opacity=".9"/>
+      <rect x="208" y="148" width="50" height="14" rx="3" fill="#00d4aa" opacity=".6"/>
+      <rect x="108" y="170" width="70" height="14" rx="3" fill="#00d4aa" opacity=".7"/>
+      <rect x="108" y="220" width="80" height="9" rx="2.5" fill="#00ffcc" opacity=".5"/>
+      <rect x="196" y="220" width="50" height="9" rx="2.5" fill="#00ffcc" opacity=".35"/>
+      <rect x="108" y="237" width="90" height="9" rx="2.5" fill="#00ffcc" opacity=".4"/>
+      <g fill="none" stroke="#00d4aa" stroke-width="36" stroke-linecap="round">
+        <path d="M108 212 L108 188 L132 188"/>
+        <path d="M316 188 L340 188 L340 212"/>
+        <path d="M108 272 L108 296 L132 296"/>
+        <path d="M316 296 L340 296 L340 272"/>
+      </g>
+      <rect x="88" y="238" width="336" height="12" rx="6" fill="#00d4aa" opacity=".85"/>
+      <circle cx="362" cy="358" r="52" stroke="#00d4aa" stroke-width="36" opacity=".9"/>
+      <line x1="402" y1="396" x2="432" y2="426" stroke="#00d4aa" stroke-width="48" stroke-linecap="round" opacity=".9"/>
+    </svg>
+  </div>
+  <div class="splash-name">anti<span>click</span></div>
+  <div class="splash-sub">Rentgen clickbaitu</div>
+  <div class="scan-bar"></div>
+</div>
+
+<!-- ONBOARDING -->
+<div id="onboarding">
+  <div class="ob-icon">
+    <svg viewBox="0 0 512 512" fill="none">
+      <g fill="none" stroke="#00d4aa" stroke-width="36" stroke-linecap="round">
+        <path d="M108 212 L108 188 L132 188"/>
+        <path d="M316 188 L340 188 L340 212"/>
+        <path d="M108 272 L108 296 L132 296"/>
+        <path d="M316 296 L340 296 L340 272"/>
+      </g>
+      <rect x="88" y="238" width="336" height="12" rx="6" fill="#00d4aa" opacity=".85"/>
+      <circle cx="362" cy="358" r="52" stroke="#00d4aa" stroke-width="36" opacity=".9"/>
+      <line x1="402" y1="396" x2="432" y2="426" stroke="#00d4aa" stroke-width="48" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <div class="ob-title">anti<span>click</span></div>
+  <div class="ob-sub">Podaj swój klucz API – zostaje wyłącznie na tym urządzeniu. Nigdy nie trafia na żaden serwer.</div>
+
+  <div class="ob-section">
+    <div class="ob-label">Klucz Groq (zalecany)</div>
+    <div class="api-card">
+      <div class="api-card-header">
+        <div class="api-card-name">Groq · Llama 3</div>
+        <div class="api-badge badge-groq">~14 400 req / dzień gratis</div>
+      </div>
+      <div class="api-hint">Zarejestruj się na <a href="https://console.groq.com" target="_blank">console.groq.com</a> → API Keys → Create API Key</div>
+      <div class="inp-wrap">
+        <input type="password" id="groq-key" placeholder="gsk_..." autocomplete="off" spellcheck="false" oninput="validateForm()">
+        <button class="inp-eye" onclick="toggleVis('groq-key',this)">👁</button>
+      </div>
+    </div>
+    <div class="api-card">
+      <div class="api-card-header">
+        <div class="api-card-name">Gemini · 1.5 Flash</div>
+        <div class="api-badge badge-gem">~1 500 req / dzień gratis</div>
+      </div>
+      <div class="api-hint">Wejdź na <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> → Get API Key</div>
+      <div class="inp-wrap">
+        <input type="password" id="gemini-key" placeholder="AIza..." autocomplete="off" spellcheck="false" oninput="validateForm()">
+        <button class="inp-eye" onclick="toggleVis('gemini-key',this)">👁</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ob-section">
+    <div class="ob-label">Adres Twojej aplikacji Streamlit</div>
+    <input class="url-input" type="url" id="streamlit-url-ob" placeholder="https://twoja-apka.streamlit.app" autocomplete="off" spellcheck="false" oninput="validateForm()">
+    <div class="url-hint">Link który dostałeś po deployu na Streamlit Cloud</div>
+  </div>
+
+  <div class="ob-info">
+    <div class="ob-info-icon">🔒</div>
+    <div>Klucze są zapisywane tylko w pamięci tej przeglądarki (localStorage). Możesz je zmienić w ustawieniach apki w dowolnym momencie.</div>
+  </div>
+
+  <button class="btn-start" id="btn-start" onclick="startApp()" disabled>Uruchom AntiClick →</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div id="status-bar">
+    <div class="sb-logo">anti<span>click</span></div>
+    <div class="sb-actions">
+      <div class="sb-provider" id="provider-badge"></div>
+      <button class="sb-btn" onclick="openSettings()">⚙</button>
+    </div>
+  </div>
+  <iframe id="main-iframe" src="" allow="clipboard-read; clipboard-write" loading="lazy"></iframe>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-backdrop" onclick="maybeClose(event)">
+  <div id="settings-panel">
+    <div class="panel-handle"></div>
+    <div class="panel-title">Ustawienia</div>
+
+    <div class="panel-section">
+      <div class="panel-label">Aktywny dostawca AI</div>
+      <div class="provider-row">
+        <button class="prov-btn" id="btn-groq"   onclick="setProvider('groq')">🟢 Groq</button>
+        <button class="prov-btn" id="btn-gemini" onclick="setProvider('gemini')">🔵 Gemini</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Klucz Groq</div>
+      <div class="inp-wrap" style="margin-bottom:12px">
+        <input type="password" id="s-groq" placeholder="gsk_..." autocomplete="off" class="panel-inp" style="padding-right:44px;margin-bottom:0">
+        <button class="inp-eye" onclick="toggleVis('s-groq',this)">👁</button>
+      </div>
+      <div class="panel-label">Klucz Gemini</div>
+      <div class="inp-wrap" style="margin-bottom:12px">
+        <input type="password" id="s-gemini" placeholder="AIza..." autocomplete="off" class="panel-inp" style="padding-right:44px;margin-bottom:0">
+        <button class="inp-eye" onclick="toggleVis('s-gemini',this)">👁</button>
+      </div>
+      <button class="btn-action" onclick="saveKeys()">Zapisz klucze</button>
+
+      <div class="panel-label" style="margin-top:8px">Adres Streamlit</div>
+      <input class="panel-inp" id="s-url" placeholder="https://twoja-apka.streamlit.app">
+      <button class="btn-action" onclick="saveUrl()">Zapisz adres</button>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Dane</div>
+      <button class="btn-danger" onclick="resetApp()">Usuń dane i zacznij od nowa</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const K = { groq:'ac_groq', gem:'ac_gem', prov:'ac_prov', url:'ac_url' };
+  const ls = { get: k => localStorage.getItem(k)||'', set: localStorage.setItem.bind(localStorage), del: localStorage.removeItem.bind(localStorage) };
+
+  window.addEventListener('DOMContentLoaded', () => {
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    // Pre-fill if returning
+    document.getElementById('groq-key').value = ls.get(K.groq);
+    document.getElementById('gemini-key').value = ls.get(K.gem);
+    document.getElementById('streamlit-url-ob').value = ls.get(K.url);
+
+    setTimeout(() => {
+      document.getElementById('splash').classList.add('out');
+      setTimeout(() => {
+        document.getElementById('splash').style.display = 'none';
+        if ((ls.get(K.groq) || ls.get(K.gem)) && ls.get(K.url)) {
+          launchApp();
+        } else {
+          document.getElementById('onboarding').classList.add('visible');
+          validateForm();
+        }
+      }, 500);
+    }, 1800);
+  });
+
+  function validateForm() {
+    const g = document.getElementById('groq-key').value.trim();
+    const m = document.getElementById('gemini-key').value.trim();
+    const u = document.getElementById('streamlit-url-ob').value.trim();
+    document.getElementById('btn-start').disabled = !((g.length > 10 || m.length > 10) && u.startsWith('http'));
+  }
+
+  function startApp() {
+    const g = document.getElementById('groq-key').value.trim();
+    const m = document.getElementById('gemini-key').value.trim();
+    const u = document.getElementById('streamlit-url-ob').value.trim();
+    if (g) ls.set(K.groq, g);
+    if (m) ls.set(K.gem, m);
+    ls.set(K.url, u);
+    if (!ls.get(K.prov)) ls.set(K.prov, g ? 'groq' : 'gemini');
+    document.getElementById('onboarding').classList.remove('visible');
+    launchApp();
+  }
+
+  function launchApp() {
+    const url  = ls.get(K.url);
+    const prov = ls.get(K.prov) || 'groq';
+    const g    = ls.get(K.groq);
+    const m    = ls.get(K.gem);
+    const sep  = url.includes('?') ? '&' : '?';
+    // Pass keys as query params – Streamlit reads via st.query_params
+    document.getElementById('main-iframe').src =
+      `${url}${sep}groq_key=${encodeURIComponent(g)}&gemini_key=${encodeURIComponent(m)}&provider=${prov}`;
+    document.getElementById('app').classList.add('visible');
+    updateBadge(prov);
+    syncPanel();
+  }
+
+  function openSettings() { syncPanel(); document.getElementById('settings-backdrop').classList.add('visible'); }
+  function maybeClose(e) { if (e.target.id==='settings-backdrop') document.getElementById('settings-backdrop').classList.remove('visible'); }
+
+  function syncPanel() {
+    document.getElementById('s-groq').value   = ls.get(K.groq);
+    document.getElementById('s-gemini').value = ls.get(K.gem);
+    document.getElementById('s-url').value    = ls.get(K.url);
+    const p = ls.get(K.prov) || 'groq';
+    document.getElementById('btn-groq').className   = 'prov-btn' + (p==='groq'   ? ' active-groq'   : '');
+    document.getElementById('btn-gemini').className = 'prov-btn' + (p==='gemini' ? ' active-gemini' : '');
+  }
+
+  function setProvider(p) {
+    ls.set(K.prov, p);
+    syncPanel(); updateBadge(p);
+    toast('Przełączono na ' + (p==='groq' ? 'Groq' : 'Gemini'));
+    reload();
+  }
+
+  function saveKeys() {
+    const g = document.getElementById('s-groq').value.trim();
+    const m = document.getElementById('s-gemini').value.trim();
+    if (g) ls.set(K.groq, g);
+    if (m) ls.set(K.gem, m);
+    toast('Klucze zapisane ✓'); reload();
+  }
+
+  function saveUrl() {
+    const u = document.getElementById('s-url').value.trim();
+    if (!u.startsWith('http')) { toast('Nieprawidłowy URL'); return; }
+    ls.set(K.url, u); toast('Adres zapisany ✓'); reload();
+  }
+
+  function resetApp() {
+    if (!confirm('Usunąć wszystkie dane? Klucze API i ustawienia zostaną skasowane.')) return;
+    Object.values(K).forEach(k => ls.del(k)); location.reload();
+  }
+
+  function reload() {
+    document.getElementById('settings-backdrop').classList.remove('visible');
+    setTimeout(launchApp, 200);
+  }
+
+  function updateBadge(p) {
+    const b = document.getElementById('provider-badge');
+    b.textContent = p==='groq' ? '⬤ Groq' : '⬤ Gemini';
+    b.style.cssText = `color:${p==='groq'?'var(--accent)':'#7ab4f8'};background:${p==='groq'?'#00d4aa18':'#4285f418'};padding:2px 8px;border-radius:8px;font-size:.65rem;font-family:'SF Mono',monospace;font-weight:600`;
+  }
+
+  function toggleVis(id, btn) {
+    const el = document.getElementById(id);
+    el.type = el.type==='password' ? 'text' : 'password';
+    btn.textContent = el.type==='password' ? '👁' : '🙈';
+  }
+
+  let tt;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    clearTimeout(tt); tt = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+</script>
+</body>
+</html>
