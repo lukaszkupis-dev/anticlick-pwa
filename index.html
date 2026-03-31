@@ -350,12 +350,9 @@
     const g    = ls.get(K.groq);
     const m    = ls.get(K.gem);
     const sep  = url.includes('?') ? '&' : '?';
-    // Pass keys as query params – Streamlit reads via st.query_params
-    document.getElementById('main-iframe').src =
-      `${url}${sep}groq_key=${encodeURIComponent(g)}&gemini_key=${encodeURIComponent(m)}&provider=${prov}`;
-    document.getElementById('app').classList.add('visible');
-    updateBadge(prov);
-    syncPanel();
+    // Streamlit blokuje iframe – przekieruj bezpośrednio
+    const full = `${url}${sep}groq_key=${encodeURIComponent(g)}&gemini_key=${encodeURIComponent(m)}&provider=${prov}`;
+    window.location.href = full;
   }
 
   function openSettings() { syncPanel(); document.getElementById('settings-backdrop').classList.add('visible'); }
